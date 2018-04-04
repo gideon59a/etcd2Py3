@@ -4,20 +4,39 @@
 import etcd
 import json
 import sys
+import configparser
+import os.path
 
+config_file_path = 'etcd_client.conf'
+config_file_exists = os.path.isfile(config_file_path)
 
-#Get etcd server address
-if len(sys.argv) < 2:
-        HOST='127.0.0.1'
-else:
-        HOST=sys.argv[1]
-
-#Get TLS file names
 TLS = False
-CERT_DIR="/root/cfssl/"
-CERT=CERT_DIR+'client.pem'
-KEY=CERT_DIR+'client-key.pem'
-CA=CERT_DIR+'ca.pem'
+HOST = '127.0.0.1'
+if config_file_exists:
+    config = configparser.ConfigParser()
+    config.read('etcd_client.conf')
+    #Get etcd server address
+    if len(sys.argv) < 2:
+        HOST = config['Server']['HOST']
+    else:
+        HOST = sys.argv[1]
+    #Get TLS file names
+    TLS  = "true" in (config['Security']['ETCD_CLIENT_CERT_AUTH']).lower() # A boolean
+    CERT = config['Security']['ETCD_CLIENT_CERT_FILE'] # returns a string
+    KEY  = config['Security']['ETCD_CLIENT_KEY_FILE'] # returns a string
+    CA   = config['Security']['ETCD_TRUSTED_CA_FILE'] # returns a string
+else:
+    if len(sys.argv) > 1:
+        HOST = sys.argv[1]
+
+print (HOST,TLS)
+
+#THE OLD WAY Getting TLS file names:
+#TLS = False
+#CERT_DIR="/root/cfssl/"
+#CERT=CERT_DIR+'client.pem'
+#KEY=CERT_DIR+'client-key.pem'
+#CA=CERT_DIR+'ca.pem'
 
 def pjson(dictdata,dstr=""):
     print (dstr, json.dumps(dictdata,sort_keys=True,indent=4, separators=(',', ': ')))
@@ -29,8 +48,7 @@ class Etcd2Py3Cli:
             self.c0 = etcd.Client(host=HOST,port=2379,protocol='https', cert=(CERT,KEY),ca_cert=CA)
         else:
             self.c0 = etcd.Client(host=HOST,port=2379,protocol='http')
-        #print ("Connected. Server version ",self.c0.version)
-        
+
         try:
             print ("Connected to server ", HOST, "etcd version ",self.c0.version)
             print ("Cluster machines:", self.c0.machines, "\nCluster leader: ", self.c0.leader)
@@ -38,7 +56,6 @@ class Etcd2Py3Cli:
         except:
             print (" *** Error conneting to etcd server. Exit.  ***")
             exit(1)
-        
 
     def check_version(self):
         try:
@@ -53,6 +70,7 @@ class Etcd2Py3Cli:
         #Get just the single requested level, non-recursive
         try:
             level0 = self.c0.read(dirstr)
+
             ## print (dirstr," level: ",level0)
             #print ("Type: ",type(dirstr))
             #print ("\nJSON PRINT: ")
@@ -123,27 +141,28 @@ class Etcd2Py3Cli:
 e0 = Etcd2Py3Cli()
 
 #write someting
-e0.c0.write('/branch1/n1', 1)
-e0.c0.write('/branch1/n2', 2)
-e0.c0.write('/branch1/dir2/m2', 222)
-e0.c0.write('/branch1/dir2/m3', 333)
+#e0.c0.write('/branch1/n1', 1)
+#e0.c0.write('/branch1/n2', 2)
+#e0.c0.write('/branch1/dir2/m2', 20)
+#e0.c0.write('/branch1/dir2/m3', 30)
+#e0.c0.write('/branch1/dir2/dird3', 311)
 
 top_level_keys = e0.get_top_keys()
 print ("Top level keys: ")
 pjson(top_level_keys)
 
-e0.get_top_children()
+if (input("\nEnter t to print all tree: ") == 't' ):
+    e0.get_top_children()
 
 goon = True
 while goon:
     pjson(top_level_keys,"Top level keys: ")
-    dirstr = input("Enter requested dir: ")
-    if dirstr != "":
-        #depth = input("Enter depth: ")
+    dirstr = input("\nEnter requested dir: ")
+    #depth = input("Enter depth: ")
+    if (dirstr != ""):
         print ("Requested: ",dirstr)
-        dir = e0.get_dir_tree(dirstr)
-    else:
-        goon = False
+        dir = e0.get_dir_tree(dirstr) #get the directory tree and print it
+    goon = (input("\nEnter any character to continue, or none to end: ") != "") # becomes false on null
 
 # =========================================
 ''' temp
