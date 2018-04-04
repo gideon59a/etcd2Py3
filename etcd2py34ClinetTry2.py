@@ -74,13 +74,17 @@ class Etcd2Py3Cli:
         return (top_keys)
 
     def get_top_children(self):
+        print ("printing all children: ")
         childs = []
+        child_number = 0
         dir0 = self.c0.read('/',recursive = True)
         for child in dir0._children:
             childs.append(child)
             ###if hasattr(dir0,'key') and hasattr(dir0,'value'):
             ###    print (child['key'], child['value'])
-            pjson(child, "Child:\n")
+            child_number += 1
+            print_str = "Child " + str(child_number) + " : \n"
+            pjson(child, print_str)
         ##x print("All children: \n",childs)
 
     def get_dir_tree(self,dirstr):
@@ -93,17 +97,19 @@ class Etcd2Py3Cli:
         pjson(dir0._children,"THE REQUESTED DIRECTORY: \n")
         #x print ("THE REQUESTED DIRECTORY: ", dir0._children)
 
-        dict={}
-        dict['key'] = dir0.key
-        if hasattr(dir0,'value'):
-            dict['value'] = dir0.value
-        print ("...dict: \n") 
-        pjson(dict)
+        #the below is not completed.
+        # Aims at creating a new dictionary with just the needed attributes. Should be heirarchical!
+        #dict={}
+        #dict['key'] = dir0.key
+        #if hasattr(dir0,'value'):
+        #    dict['value'] = dir0.value
+        #print ("...dict: \n")
+        #pjson(dict)
 
         if dir0._children == []:
             print("No children. End of tree.")
         for child in dir0._children:
-            if hasattr(dir0,'key') and hasattr(dir0,'value'):
+            if hasattr(child,'key') and hasattr(child,'value'):
                 print (child['key'], child['value'])
 
         return 0
@@ -111,7 +117,8 @@ class Etcd2Py3Cli:
     def jprint_all_tree(self):
         return  
 
-#====================================================
+# ****************************************************************
+# start:
 	
 e0 = Etcd2Py3Cli()
 
@@ -127,9 +134,20 @@ pjson(top_level_keys)
 
 e0.get_top_children()
 
+goon = True
+while goon:
+    pjson(top_level_keys,"Top level keys: ")
+    dirstr = input("Enter requested dir: ")
+    if dirstr != "":
+        #depth = input("Enter depth: ")
+        print ("Requested: ",dirstr)
+        dir = e0.get_dir_tree(dirstr)
+    else:
+        goon = False
 
+# =========================================
 ''' temp
-### Build a dict from the above result
+### Build an heirarchical dict from the above result
 print ("Level dict:")
 level_dict = {}
 for ki in top_level_keys:
@@ -140,23 +158,4 @@ for ki in top_level_keys:
 exit()
 for level in top_level_keys:
     e0.get_level_keys(level)
-
-
-#keypath = '/foo2'
-#itsClass = e0.c0.read(keypath) 
-#print ("itsClass: ",itsClass)
-#print ("...")
-#print (itsClass.value)
-
 ''' #end temp
-
-goon = True
-while goon:
-    dirstr = input("Enter requested dir: ")
-    if dirstr != "":
-        #depth = input("Enter depth: ")
-        print ("Requested: ",dirstr)
-        dir = e0.get_dir_tree(dirstr)
-    else:
-        goon = False
-
