@@ -7,7 +7,12 @@ import sys
 import configparser
 import os.path
 
-config_file_path = 'etcd_client.conf'
+#print ("argvs:", sys.argv[0],sys.argv[1],sys.argv[2])
+
+if len(sys.argv) > 1:
+    config_file_path = sys.argv[1]
+else:
+    config_file_path = 'etcd_client.conf'
 config_file_exists = os.path.isfile(config_file_path)
 
 TLS = False
@@ -16,27 +21,20 @@ if config_file_exists:
     config = configparser.ConfigParser()
     config.read('etcd_client.conf')
     #Get etcd server address
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         HOST = config['Server']['HOST']
     else:
-        HOST = sys.argv[1]
+        HOST = sys.argv[2]
     #Get TLS file names
     TLS  = "true" in (config['Security']['ETCD_CLIENT_CERT_AUTH']).lower() # A boolean
     CERT = config['Security']['ETCD_CLIENT_CERT_FILE'] # returns a string
     KEY  = config['Security']['ETCD_CLIENT_KEY_FILE'] # returns a string
     CA   = config['Security']['ETCD_TRUSTED_CA_FILE'] # returns a string
 else:
-    if len(sys.argv) > 1:
-        HOST = sys.argv[1]
+    if len(sys.argv) > 2:
+        HOST = sys.argv[2]
 
-print (HOST,TLS)
-
-#THE OLD WAY Getting TLS file names:
-#TLS = False
-#CERT_DIR="/root/cfssl/"
-#CERT=CERT_DIR+'client.pem'
-#KEY=CERT_DIR+'client-key.pem'
-#CA=CERT_DIR+'ca.pem'
+#print ("Server:",HOST,"TLS:",TLS)
 
 def pjson(dictdata,dstr=""):
     print (dstr, json.dumps(dictdata,sort_keys=True,indent=4, separators=(',', ': ')))
@@ -50,7 +48,7 @@ class Etcd2Py3Cli:
             self.c0 = etcd.Client(host=HOST,port=2379,protocol='http')
 
         try:
-            print ("Connected to server ", HOST, "etcd version ",self.c0.version)
+            print ("Connected to server ", HOST, "etcd version ",self.c0.version, "TLS:",TLS)
             print ("Cluster machines:", self.c0.machines, "\nCluster leader: ", self.c0.leader)
             print (" ")
         except:
@@ -80,9 +78,10 @@ class Etcd2Py3Cli:
             return 1
         return level0
 
-    def get_value(self,key): # ???
+    def pr_value(self,key):
         if hasattr(dir0,'key') and hasattr(dir0,'value'):
-            print (dir0.key, dir0.value)       
+            if dir0.value != None:
+                print (dir0.key, dir0.value)
 
     def get_top_keys(self):
         top0 = self.c0.read('/')
@@ -105,31 +104,29 @@ class Etcd2Py3Cli:
             pjson(child, print_str)
         ##x print("All children: \n",childs)
 
+    def pr_key_val(self,_data):
+        if hasattr(_data, 'key') and hasattr(_data, 'value'):
+            if _data.value != None:
+                print('"key":   ',_data.key,',\n"value": ', _data.value)
+
     def get_dir_tree(self,dirstr):
         try:
             dir0 = self.c0.read(dirstr,recursive = True)
-            #print ("dir0: ",dir0)
+            print ("dir0: ",dir0)
         except etcd.EtcdKeyNotFound:
             print ("Error, no such dir")
             return 1
-        pjson(dir0._children,"THE REQUESTED DIRECTORY: \n")
-        #x print ("THE REQUESTED DIRECTORY: ", dir0._children)
+        print("\nTHE REQUESTED DIRECTORY:")
 
-        #the below is not completed.
-        # Aims at creating a new dictionary with just the needed attributes. Should be heirarchical!
-        #dict={}
-        #dict['key'] = dir0.key
-        #if hasattr(dir0,'value'):
-        #    dict['value'] = dir0.value
-        #print ("...dict: \n")
-        #pjson(dict)
+        #pjson(dir0._children,"THE REQUESTED DIRECTORY: \n")
 
-        if dir0._children == []:
-            print("No children. End of tree.")
+        self.pr_key_val(dir0) # print key+val at dir top level
         for child in dir0._children:
+            pjson(dir0._children)
             if hasattr(child,'key') and hasattr(child,'value'):
                 print (child['key'], child['value'])
-
+        if dir0._children == []:
+            print("No children. End of tree.")
         return 0
 
     def jprint_all_tree(self):
@@ -164,17 +161,4 @@ while goon:
         dir = e0.get_dir_tree(dirstr) #get the directory tree and print it
     goon = (input("\nEnter any character to continue, or none to end: ") != "") # becomes false on null
 
-# =========================================
-''' temp
-### Build an heirarchical dict from the above result
-print ("Level dict:")
-level_dict = {}
-for ki in top_level_keys:
-    one_level = level_dict(ki, e0.get_value(ki))
-    print (dirstr," level: ", one_level)
-###pjson(level_dict)   
-
-exit()
-for level in top_level_keys:
-    e0.get_level_keys(level)
-''' #end temp
+print ("End.")
